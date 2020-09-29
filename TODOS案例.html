@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/index.css">
+</head>
+
+<body>
+    <section id="todoapp" class="todoapp">
+        <my-header @inpvalue='AddTodo'></my-header>
+        <my-main :todos='todos' 
+        @del='Del'
+        @save-edit="saveEdit"
+        @dbl-click="aaaa" 
+        :currentediting="currentEditing"
+        ></my-main>
+        <my-footer @remove-all-done='removeAllDone' :num='num'></my-footer>
+    </section>
+    <script src="js/vue.js"></script>
+    <script>
+        var MyHeader = {
+            props: ['todos'],
+            template: `
+            <header class="header">
+                <h1>todos</h1>
+                <input placeholder="What needs to be done?" class="new-todo" v-on:keyup.enter='Add'>
+            </header>
+            `,
+            methods: {
+                Add: function(event) {
+                    // 把用户输入的数据传递到父组件中去
+                    // console.log(event.target.value);
+                    var todoText = event.target.value.trim();
+                    if (!todoText.length) {
+                        return event.target.value = ''
+                    };
+                    this.$emit("inpvalue", todoText)
+                }
+            },
+        };
+        var MyMain = {
+            props: ['todos', 'currentediting'],
+            template: `
+            <section class="main">
+            <input v-model='toggleStat1' id="toggle-all" type="checkbox" class="toggle-all">
+            <label for="toggle-all">Mark all as complete</label>
+            <ul class="todo-list" :key='index' v-for='(item,index) in todos'>
+                <li :class="{completed: item.completed, editing: item === currentediting}">
+                    <div class="view">
+                        <input type="checkbox" class="toggle" v-model="item.completed">
+                        <label @dblclick="doubleMethods(item)">{{item.title}}</label>
+                        <button class="destroy" @click="del(index, $event)"></button>
+                    </div>
+                    <input class="edit" @keyup.enter="saveEdit(item, index, $event)"
+                    :value="item.title"
+                    @keyup.esc="currentediting = null"
+                    >
+                </li>
+            </ul>
+           </section>
+            `,
+            methods: {
+                //  删除操作  子组件不要操作父组件里面的数据 把对应的数据传递到父组件中
+                del: function(index) {
+                    this.$emit('del',index)
+                },
+                // 把当前数据发送到父元素     通过父元素保存子元素数据 
+                saveEdit(item, index, event) {
+                    var editText = event.target.value.trim()
+                    this.$emit("save-edit", editText, item, index)
+                },
+                // 子组件 把当前点击的li 传递到父元素
+                doubleMethods(item) {
+                    this.$emit("dbl-click", item)
+                },
+            },
+            computed: {
+                //  实现全选功能  
+                toggleStat1: {
+                    get() {
+                        return this.todos.every(item => item.completed)
+                    },
+                    set(val) {
+                        this.todos.forEach(todo => todo.completed = val)
+                    }
+                },
+            },
+        };
+        var MyFooter = {
+            props: ['num'],
+            template: `
+            <footer class="footer">
+                <span class="todo-count">
+                       <strong>{{num}}</strong> item left</span>
+                <ul class="filters">
+                    <li><a href="#/" class="selected">All</a></li>
+                    <li><a href="#/active">Active</a></li>
+                    <li><a href="#/completed">Completed</a></li>
+                </ul>
+                <button class="clear-completed" @click='removeAllDone'>Clear completed</button>
+            </footer>
+            `,
+            methods: {
+                removeAllDone: function() {
+                    this.$emit('remove-all-done')
+                }
+            },
+        };
+        new Vue({
+            el: "#todoapp",
+            data: {
+                currentEditing: null,
+                todos: [{
+                    id: 1,
+                    title: '吃饭',
+                    completed: false
+                }, {
+                    id: 2,
+                    title: '睡觉',
+                    completed: false
+                }, {
+                    id: 3,
+                    title: '打豆豆',
+                    completed: true
+                }]
+            },
+            methods: {
+                AddTodo: function(todoText) {
+                    const lastTodo = this.todos[this.todos.length - 1];
+                    const id = lastTodo ? lastTodo.id + 1 : 1;
+                    this.todos.push({
+                        id,
+                        title: todoText,
+                        completed: false
+                    });
+                    event.target.value = '';
+                },
+                Del: function(delIndex) {
+                    this.todos.splice(delIndex, 1)
+                },
+                // 保存编辑项
+                saveEdit(editText, item, index) {
+                    // 1. 拿到文本框中的数据
+                    //    非空校验
+                    //    如果为空，则直接删除这个 item
+                    //    如果不为空，则修改任务项的 title 数据
+
+                    // 程序员要具有工匠精神：优化简写
+                    // !editText.length ?
+                    //   this.todos.splice(index, 1) :
+                    //   item.title = editText
+
+                    if (!editText.length) {
+                        // 将元素直接从数组中移除
+                        return this.todos.splice(index, 1)
+                    };
+
+                    // 2. 将数据设置到任务项中
+                    item.title = editText;
+
+                    // 3. 去除 editing 样式
+                    this.currentEditing = null;
+                },
+                // 把当前li的数据 赋值给 currentEditing 即让当前li 绑定 类名
+                aaaa(item) {
+                    this.currentEditing = item
+                },
+                removeAllDone: function() {
+                    this.todos = this.todos.filter(item => !item.completed);
+                }
+            },
+            computed: {
+                num: function() {
+                    return this.todos.filter(item => !item.completed).length;
+                }
+            },
+            components: {
+                'my-header': MyHeader,
+                'my-main': MyMain,
+                'my-footer': MyFooter,
+            }
+
+        })
+    </script>
+</body>
+
+</html>
